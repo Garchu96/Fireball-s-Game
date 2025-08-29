@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de la Fireball</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(to bottom, #1a202c, #2d3748);
+            color: white;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            margin: 0;
+            user-select: none;
+        }
+        
+        #game-screen {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        #setup-screen {
+            z-index: 100;
+        }
+
+        #canvas-container { 
+            flex: 1;
+            position: relative;
+            height: 100%;
+        }
+
+        .player-token {
+            position: absolute;
+            font-size: 2.5rem;
+            text-shadow: 0 0 5px rgba(0,0,0,0.5);
+            z-index: 20;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            transition: all 0.2s linear;
+        }
+        
+        #controls-panel {
+            z-index: 100;
+            background-color: rgba(45, 55, 72, 0.8);
+        }
+
+        .dice-container {
+            font-size: 3rem;
+            font-weight: bold;
+            text-align: center;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .special-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #4a5568;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: fadeInOut 4s forwards;
+            z-index: 1000;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            10% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            90% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+        }
+
+        .player-info-card {
+            background-color: #2d3748;
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .active-player-card {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(74, 222, 128, 0.8);
+            border: 2px solid #4ade80;
+        }
+        
+        #square-info-panel {
+            width: 300px;
+            min-height: 200px;
+            background-color: rgba(45, 55, 72, 0.9);
+            border-radius: 1rem;
+            padding: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: absolute;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            #square-info-panel {
+                position: static;
+                transform: none;
+                width: 90%;
+                margin: 1rem auto;
+            }
+            #game-screen {
+                flex-direction: column;
+                justify-content: flex-start;
+            }
+            #canvas-container {
+                order: 2;
+                height: 50%;
+            }
+            #controls-panel {
+                order: 3;
+                position: static;
+                transform: none;
+                width: 90%;
+                margin: 1rem auto;
+            }
+            #game-info {
+                position: static;
+                order: 1;
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="setup-screen" class="p-8 max-w-lg mx-auto bg-gray-800 rounded-3xl shadow-xl space-y-6 absolute z-50">
+    <h1 class="text-4xl font-bold text-center text-teal-400">Juego de la Fireball</h1>
+    <div class="space-y-4">
+        <label for="player-count" class="block text-xl font-medium text-gray-300">Número de Jugadores:</label>
+        <select id="player-count" class="block w-full rounded-lg bg-gray-700 text-white p-3 focus:outline-none focus:ring-2 focus:ring-teal-500">
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+        </select>
+    </div>
+    <div id="player-inputs" class="space-y-4"></div>
+    <button id="start-game-btn" class="w-full py-3 bg-teal-500 rounded-lg text-white font-bold text-xl hover:bg-teal-600 transition-colors shadow-lg">Comenzar</button>
+</div>
+
+<div id="game-screen" class="hidden w-full h-full p-4 flex justify-between items-center relative">
+    <div id="canvas-container"></div>
+    
+    <div id="game-info" class="w-full flex flex-wrap justify-center md:justify-between items-center p-4 gap-4 absolute top-0 left-0">
+        <div id="player-status-container" class="flex flex-wrap justify-center gap-2"></div>
+        <button id="toggle-audio-btn" class="p-2 rounded-full bg-gray-700 text-white hover:bg-gray-600 transition-colors">
+            <svg id="volume-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728m-9.9-2.828a5 5 0 010-7.072M3 12a9 9 0 012.828-6.364l14.142 14.142A9 9 0 013 12z" />
+            </svg>
+        </button>
+    </div>
+    
+    <div id="square-info-panel" class="hidden md:flex flex-col items-center justify-center">
+        <div id="square-number" class="text-6xl font-bold mb-2"></div>
+        <div id="square-icon" class="text-4xl"></div>
+        <div id="square-description" class="text-lg mt-4 text-center"></div>
+    </div>
+    
+    <div id="controls-panel" class="p-4 mt-4 w-full md:w-1/2 bg-gray-800 rounded-3xl shadow-xl flex flex-col items-center space-y-4 absolute bottom-4 left-1/2 -translate-x-1/2">
+        <div id="dice-display" class="dice-container"></div>
+        <button id="roll-dice-btn" class="w-full py-3 bg-teal-500 rounded-lg text-white font-bold text-xl hover:bg-teal-600 transition-colors shadow-lg">Tirar Dados</button>
+        <div id="message-area" class="text-center text-lg mt-2 h-16 flex items-center justify-center"></div>
+        <div id="current-player-name" class="text-2xl font-bold text-center"></div>
+    </div>
+</div>
+
+<script>
+    // ================================================================
+    // 1. LÓGICA DE CONFIGURACIÓN Y UI
+    // ================================================================
+    const dom = {
+        setupScreen: document.getElementById('setup-screen'),
+        gameScreen: document.getElementById('game-screen'),
+        playerCountSelect: document.getElementById('player-count'),
+        playerInputsDiv: document.getElementById('player-inputs'),
+        startGameBtn: document.getElementById('start-game-btn'),
+        canvasContainer: document.getElementById('canvas-container'),
+        rollDiceBtn: document.getElementById('roll-dice-btn'),
+        diceDisplay: document.getElementById('dice-display'),
+        messageArea: document.getElementById('message-area'),
+        currentPlayerNameDisplay: document.getElementById('current-player-name'),
+        playerStatusContainer: document.getElementById('player-status-container'),
+        toggleAudioBtn: document.getElementById('toggle-audio-btn'),
+        volumeIcon: document.getElementById('volume-icon'),
+        squareInfoPanel: document.getElementById('square-info-panel'),
+        squareNumberDisplay: document.getElementById('square-number'),
+        squareIconDisplay: document.getElementById('square-icon'),
+        squareDescriptionDisplay: document.getElementById('square-description'),
+    };
+
+    function updatePlayerInputs() {
+        const count = parseInt(dom.playerCountSelect.value);
+        dom.playerInputsDiv.innerHTML = '';
+        const symbolEmojis = ['🎲', '🍻', '🥃', '🔥'];
+        for (let i = 0; i < count; i++) {
+            const inputGroup = `
+                <div class="flex items-center space-x-2">
+                    <input type="text" placeholder="Nombre del Jugador ${i + 1}" class="player-name-input flex-1 p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-teal-500" required>
+                    <select class="player-symbol-select p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        ${symbolEmojis.map(emoji => `<option value="${emoji}">${emoji}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+            dom.playerInputsDiv.insertAdjacentHTML('beforeend', inputGroup);
+        }
+    }
+    
+    function updatePlayerStatusUI() {
+        dom.playerStatusContainer.innerHTML = '';
+        players.forEach(player => {
+            const cardHTML = `
+                <div id="player-card-${player.name.replace(/\s+/g, '-')}" class="player-info-card">
+                    <div class="flex items-center justify-center space-x-2">
+                        <span class="text-3xl">${player.symbol}</span>
+                        <span class="font-bold text-lg">${player.name}</span>
+                    </div>
+                    <div class="text-sm">Casilla: <span id="player-${player.name.replace(/\s+/g, '-')}-pos">${player.position + 1}</span></div>
+                </div>
+            `;
+            dom.playerStatusContainer.insertAdjacentHTML('beforeend', cardHTML);
+        });
+    }
+
+    function updatePlayerTurnUI() {
+        const currentPlayer = players[currentPlayerIndex];
+        dom.currentPlayerNameDisplay.textContent = `Turno de ${currentPlayer.name}`;
+        document.querySelectorAll('.player-info-card').forEach(card => card.classList.remove('active-player-card'));
+        const activeCard = document.getElementById(`player-card-${currentPlayer.name.replace(/\s+/g, '-')}`);
+        if (activeCard) {
+            activeCard.classList.add('active-player-card');
+        }
+    }
+    
+    function updateSquareInfoPanel(squareNumber) {
+        let icon = '';
+        if (specialSquares.fireball.includes(squareNumber)) {
+            icon = '🔥';
+        } else if (specialSquares.reto.includes(squareNumber)) {
+            icon = '🍷';
+        } else if (squareNumber === specialSquares.final) {
+            icon = '🏆';
+        } else if (specialSquares.loseTurn.includes(squareNumber)) {
+            icon = '⏳';
+        }
+        
+        dom.squareNumberDisplay.textContent = squareNumber;
+        dom.squareIconDisplay.textContent = icon;
+        dom.squareDescriptionDisplay.textContent = challenges[squareNumber] || "¡Sigue avanzando!";
+    }
+
+    function showMessage(text) {
+        const specialMessageDiv = document.createElement('div');
+        specialMessageDiv.className = 'special-message';
+        specialMessageDiv.textContent = text;
+        dom.gameScreen.appendChild(specialMessageDiv);
+        setTimeout(() => specialMessageDiv.remove(), 4000); 
+    }
+
+    dom.playerCountSelect.addEventListener('change', updatePlayerInputs);
+    dom.startGameBtn.addEventListener('click', startGame);
+
+    // ================================================================
+    // 2. LÓGICA DEL JUEGO
+    // ================================================================
+    let players = [];
+    let currentPlayerIndex = 0;
+    let isRolling = false;
+    let isMoving = false;
+    let isFocusing = false;
+    const totalSquares = 63;
+    
+    const challenges = {
+        1: "¡Comienza la aventura! ¡Toma un sorbo de tu bebida!",
+        2: "¡Duelo de miradas! El que parpadea primero, bebe.",
+        3: "Di tu color favorito. Si alguien tiene el mismo, bebe.",
+        4: "¡Reto! Haz un 'high five' a otro jugador. Si te lo devuelve, ambos beben.",
+        5: "¡Fireball! Avanzas 6 casillas extra.",
+        6: "¡Reto! Hazle una pregunta a un jugador. Si no responde, bebe.",
+        7: "¡Regla de la casa! Inventa una regla que dure una ronda.",
+        8: "¡Reto! Imita a tu animal favorito.",
+        9: "Si eres el jugador más joven, bebe.",
+        10: "¡Pierdes turno! Te quedas una ronda sin tirar los dados.",
+        11: "¡Reto! Haz un chiste. Si nadie se ríe, bebe.",
+        12: "¡Todos beben!",
+        13: "¡Reto! Cuenta una historia de terror de 3 palabras. La más votada hace beber al resto.",
+        14: "Si tienes un teléfono a la vista, bebe.",
+        15: "¡Fireball! Avanzas 6 casillas extra.",
+        16: "Si eres zurdo, bebe.",
+        17: "¡Reto! Haz 5 flexiones o bebe.",
+        18: "¡Todos los jugadores con la inicial 'A' beben!",
+        19: "Si la última película que viste fue de comedia, bebe.",
+        20: "¡Pierdes turno! Te quedas una ronda sin tirar los dados.",
+        21: "Si llevas reloj, bebe.",
+        22: "¡Reto! Di 'Supercalifragilisticoespialidoso' tres veces, si te equivocas, bebes.",
+        23: "El jugador a tu izquierda bebe.",
+        24: "Si eres el jugador más alto, bebe.",
+        25: "¡Fireball! Avanzas 6 casillas extra.",
+        26: "Si no tienes redes sociales, bebe.",
+        27: "¡Reto! Lánzate al suelo, da una vuelta, levántate y bebe. Si te tambaleas, otro trago.",
+        28: "Si naciste en un mes con 'r', bebes. ¡Y si no, te salvas!",
+        29: "El jugador a tu derecha bebe.",
+        30: "¡Pierdes turno! Te quedas una ronda sin tirar los dados.",
+        31: "Todos los que tengan un número par en su posición de casilla beben.",
+        32: "Si no bebes alcohol, bebe agua.",
+        33: "Si eres el jugador más bajo, bebe.",
+        34: "El jugador que no se rió en tu último chiste, bebe.",
+        35: "¡Fireball! Avanzas 6 casillas extra.",
+        36: "Si eres el jugador que tiene más llaves en el bolsillo, bebes.",
+        37: "Elige a un jugador para que beba.",
+        38: "¡Reto! Canta una canción de karaoke.",
+        39: "Si te has tropezado hoy, bebes.",
+        40: "Si tu cabello es rubio, bebe.",
+        41: "Elige una regla para que todos la sigan durante la siguiente ronda.",
+        42: "¡Reto! Pídele un 'me gusta' a alguien en las redes sociales. Si no lo consigues en 5 segundos, bebes.",
+        43: "Si tu posición de casilla es un número primo, bebes.",
+        44: "El último en decir '¡Juego de la Fireball!' bebe.",
+        45: "¡Fireball! Avanzas 6 casillas extra.",
+        46: "Si naciste en invierno, bebes.",
+        47: "Si te has perdido en una ciudad, bebes.",
+        48: "¡Reto! Elige a otro jugador para un 'piedra, papel o tijera'. El perdedor bebe.",
+        49: "Si no llevas pantalón vaquero, bebes.",
+        50: "¡Pierdes turno! Te quedas una ronda sin tirar los dados.",
+        51: "Si llevas una camisa de color blanco, bebes.",
+        52: "Si eres el jugador con más tatuajes, bebes.",
+        53: "Elige a un jugador y hazle una pregunta. Si te contesta, bebe. Si no, tú bebes.",
+        54: "Si llevas gafas, bebes.",
+        55: "¡Fireball! Avanzas 6 casillas extra.",
+        56: "Si no sabes qué hora es, bebe.",
+        57: "¡Reto! Describe a tu mascota sin decir su nombre.",
+        58: "Si tu nombre tiene más de 5 letras, bebes.",
+        59: "Si eres el jugador más lento, bebes.",
+        60: "¡Pierdes turno! Te quedas una ronda sin tirar los dados.",
+        61: "El jugador con la bebida más colorida, bebe.",
+        62: "Si no tienes pareja, bebes.",
+        63: "¡Has llegado a la meta! ¡Victoria! ¡Todos beben a tu salud!"
+    };
+    
+    const specialSquares = {
+        'fireball': [5, 15, 25, 35, 45, 55],
+        'reto': [6, 8, 11, 13, 17, 22, 27, 30, 38, 42, 48, 50, 57, 60],
+        'loseTurn': [10, 20, 30, 50, 60],
+        'final': 63
+    };
+
+    function startGame() {
+        const nameInputs = document.querySelectorAll('.player-name-input');
+        const symbolSelects = document.querySelectorAll('.player-symbol-select');
+        const playerNames = Array.from(nameInputs).map(input => input.value || `Jugador ${Math.floor(Math.random() * 1000)}`);
+
+        const uniqueNames = new Set(playerNames);
+        if (uniqueNames.size !== playerNames.length) {
+            showMessage("¡Los nombres de los jugadores no pueden ser duplicados!");
+            return;
+        }
+
+        players = Array.from(nameInputs).map((input, index) => ({
+            name: input.value || `Jugador ${index + 1}`,
+            symbol: symbolSelects[index].value,
+            position: 0,
+            skipTurn: false
+        }));
+        
+        dom.setupScreen.classList.add('hidden');
+        dom.gameScreen.classList.remove('hidden');
+        dom.squareInfoPanel.classList.remove('hidden');
+
+        initThreeJS();
+        updatePlayerStatusUI();
+        updatePlayerTurnUI();
+        updateSquareInfoPanel(1);
+
+        players.forEach((player, index) => {
+            const initialPos = getSquarePosition(0);
+            const offset = (index - (players.length - 1) / 2) * 2;
+            playerTokenObjects[index].position.set(initialPos.x + offset, initialPos.y + 1.5, initialPos.z);
+        });
+    }
+    
+    function movePlayer(steps) {
+        isMoving = true;
+        const currentPlayer = players[currentPlayerIndex];
+        const playerObject = playerTokenObjects[currentPlayerIndex];
+        const startPosition = currentPlayer.position;
+        let endPosition = startPosition + steps;
+
+        if (endPosition > totalSquares - 1) {
+            const overshoot = endPosition - (totalSquares - 1);
+            endPosition = (totalSquares - 1) - overshoot;
+            showMessage(`Te pasaste por ${overshoot} casillas! Retrocedes.`);
+        }
+
+        const particleEffect = createParticleEffect(playerObject);
+        const duration = 1500;
+        let startTime = null;
+        
+        function animateMove(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            const currentPositionIndex = startPosition + (endPosition - startPosition) * progress;
+            const currentSquareIndex = Math.min(Math.floor(currentPositionIndex), totalSquares - 1);
+            const t = currentPositionIndex - currentSquareIndex;
+            
+            const p1 = getSquarePosition(currentSquareIndex);
+            const p2 = getSquarePosition(Math.min(currentSquareIndex + 1, totalSquares - 1));
+            
+            if (p1 && p2) {
+                const interpolatedPosition = new THREE.Vector3().lerpVectors(p1, p2, t);
+                const offset = (currentPlayerIndex - (players.length - 1) / 2) * 2;
+                interpolatedPosition.x += offset;
+                
+                playerObject.position.copy(interpolatedPosition);
+                updateRenderedSquares();
+            }
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateMove);
+            } else {
+                isMoving = false;
+                currentPlayer.position = endPosition;
+                
+                playerObject.remove(particleEffect);
+                
+                const finalPos = getSquarePosition(endPosition);
+                if (finalPos) {
+                    const offset = (currentPlayerIndex - (players.length - 1) / 2) * 2;
+                    playerObject.position.set(finalPos.x + offset, finalPos.y + 1.5, finalPos.z);
+                }
+                
+                document.getElementById(`player-${currentPlayer.name.replace(/\s+/g, '-')}-pos`).textContent = endPosition + 1;
+                checkSpecialSquare();
+            }
+        }
+        requestAnimationFrame(animateMove);
+    }
+    
+    function checkSpecialSquare() {
+        const currentPlayer = players[currentPlayerIndex];
+        const currentSquare = currentPlayer.position + 1;
+        
+        updateSquareInfoPanel(currentSquare);
+        showMessage(challenges[currentSquare] || "¡Sigue avanzando!"); 
+        
+        if (specialSquareSounds[currentSquare.toString()]) {
+            playSound(specialSquareSounds[currentSquare.toString()]);
+        }
+        
+        if (specialSquares.fireball.includes(currentSquare) && currentSquare !== specialSquares.final) {
+            setTimeout(() => {
+                movePlayer(6); 
+            }, 4500); 
+        } else if (specialSquares.loseTurn.includes(currentSquare)) {
+             players[currentPlayerIndex].skipTurn = true;
+             setTimeout(nextTurn, 5000);
+        } else if (currentSquare === specialSquares.final) {
+            playSound(sounds.win);
+            dom.rollDiceBtn.disabled = true;
+            showMessage(`¡${currentPlayer.name} ha ganado!`);
+        } else {
+            setTimeout(nextTurn, 5000); 
+        }
+    }
+
+    function nextTurn() {
+        if (players[currentPlayerIndex].position + 1 === specialSquares.final) {
+            return;
+        }
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+        if (players[currentPlayerIndex].skipTurn) {
+            showMessage(`¡${players[currentPlayerIndex].name} pierde el turno!`);
+            players[currentPlayerIndex].skipTurn = false;
+            setTimeout(nextTurn, 3000);
+            return;
+        }
+        updatePlayerTurnUI();
+        isRolling = false;
+        dom.rollDiceBtn.disabled = false;
+        dom.messageArea.textContent = "";
+    }
+
+    dom.rollDiceBtn.addEventListener('click', () => {
+        if (isRolling || isMoving || isFocusing) return;
+        isRolling = true;
+        dom.rollDiceBtn.disabled = true;
+        playSound(sounds.diceRoll);
+
+        let rollCount = 0;
+        const rollInterval = setInterval(() => {
+            const diceValue = Math.floor(Math.random() * 6) + 1;
+            dom.diceDisplay.textContent = diceValue;
+            rollCount++;
+            if (rollCount > 10) {
+                clearInterval(rollInterval);
+                const finalDiceValue = Math.floor(Math.random() * 6) + 1;
+                dom.diceDisplay.textContent = finalDiceValue;
+                dom.messageArea.textContent = `${players[currentPlayerIndex].name} tiró un ${finalDiceValue}`;
+                movePlayer(finalDiceValue);
+            }
+        }, 100);
+    });
+
+    // ================================================================
+    // 3. LÓGICA DE THREE.JS (GRÁFICOS 3D)
+    // ================================================================
+    let scene, camera, renderer;
+    let playerTokens = [];
+    let playerTokenObjects = [];
+    const renderedSquares = new Map();
+    const squareWidth = 10;
+    const squareSpacing = 5;
+    let lastSquarePos = new THREE.Vector3(0, 0.5, 0);
+    let lastSquareDirection = new THREE.Vector3(0, 0, -1);
+    let lastGeneratedSquareIndex = -1;
+    let waveEffect = null;
+    let cameraTargetPosition = new THREE.Vector3();
+    let cameraLookAtTarget = new THREE.Vector3();
+
+    function initThreeJS() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(dom.canvasContainer.clientWidth, dom.canvasContainer.clientHeight);
+        dom.canvasContainer.appendChild(renderer.domElement);
+        renderer.setClearColor(0x000000, 0);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 7.5);
+        scene.add(directionalLight);
+
+        // Posición de la cámara inicial
+        camera.position.set(0, 20, 30);
+        camera.lookAt(0, 0, 0);
+
+        window.addEventListener('resize', onWindowResize, false);
+        createPlayerTokens();
+        generateBoardSegment(0, 20);
+        
+        animate();
+    }
+
+    function onWindowResize() {
+        camera.aspect = dom.canvasContainer.clientWidth / dom.canvasContainer.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(dom.canvasContainer.clientWidth, dom.canvasContainer.clientHeight);
+    }
+    
+    function getSquarePosition(index) {
+        const square = renderedSquares.get(index);
+        if (square) {
+            return square.position;
+        }
+        return new THREE.Vector3(0, 1.5, 0);
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        const currentPlayerObject = playerTokenObjects[currentPlayerIndex];
+        if (currentPlayerObject) {
+            const targetPos = currentPlayerObject.position;
+            const targetCameraPosition = targetPos.clone().add(new THREE.Vector3(0, 20, 30));
+            const targetLookAt = targetPos.clone().add(new THREE.Vector3(0, 0, 0));
+
+            camera.position.lerp(targetCameraPosition, 0.05);
+            camera.lookAt(targetLookAt);
+        }
+
+        if (waveEffect) {
+            const squares = Array.from(renderedSquares.values());
+            const center = waveEffect.center;
+            const progress = waveEffect.progress;
+
+            squares.forEach(mesh => {
+                const distance = mesh.position.distanceTo(center);
+                const intensity = Math.max(0, 1 - Math.abs(distance - progress) / 10);
+                const originalColor = mesh.userData.originalColor;
+                if (originalColor) {
+                    const newColor = originalColor.clone().lerp(new THREE.Color(0xADD8E6), intensity);
+                    mesh.material.color.copy(newColor);
+                }
+            });
+
+            waveEffect.progress += 0.5;
+            if (waveEffect.progress > 40) {
+                waveEffect = null;
+                squares.forEach(mesh => {
+                    if (mesh.userData.originalColor) {
+                        mesh.material.color.copy(mesh.userData.originalColor);
+                    }
+                });
+            }
+        }
+
+        updateTokensPosition();
+        renderer.render(scene, camera);
+    }
+    
+    function startWaveEffect(centerPosition) {
+        waveEffect = {
+            center: centerPosition.clone(),
+            progress: 0
+        };
+        renderedSquares.forEach(mesh => {
+            mesh.userData.originalColor = mesh.material.color.clone();
+        });
+    }
+
+    function generateBoardSegment(startIndex, count) {
+        const baseColor = new THREE.Color(0xf7fafc);
+        const specialColor = new THREE.Color(0xef4444);
+        const challengeColor = new THREE.Color(0x2563eb);
+        const finalColor = new THREE.Color(0xfacc15);
+        const startColor = new THREE.Color(0x4ade80);
+        const loseTurnColor = new THREE.Color(0x805ad5);
+        
+        const directionVector = new THREE.Vector3(0, 0, -1);
+        lastSquareDirection.copy(directionVector);
+
+        for (let i = startIndex; i < startIndex + count; i++) {
+            if (i >= totalSquares) break;
+
+            let color = baseColor;
+            if (i === 0) {
+                color = startColor;
+            } else if (specialSquares.fireball.includes(i + 1)) {
+                color = specialColor;
+            } else if (specialSquares.loseTurn.includes(i + 1)) {
+                color = loseTurnColor;
+            } else if (specialSquares.reto.includes(i + 1)) {
+                color = challengeColor;
+            } else if (i + 1 === specialSquares.final) {
+                 color = finalColor;
+            }
+
+            const geometry = new THREE.BoxGeometry(squareWidth, 1, squareWidth);
+            const material = new THREE.MeshLambertMaterial({ color: color });
+            const squareMesh = new THREE.Mesh(geometry, material);
+            
+            lastSquarePos.add(lastSquareDirection.clone().multiplyScalar(squareWidth + squareSpacing));
+            squareMesh.position.copy(lastSquarePos);
+            
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), lastSquareDirection);
+            squareMesh.setRotationFromQuaternion(quaternion);
+            
+            scene.add(squareMesh);
+            renderedSquares.set(i, squareMesh);
+        }
+        lastGeneratedSquareIndex = startIndex + count - 1;
+    }
+
+    function updateRenderedSquares() {
+        const lowestPlayerPosition = Math.min(...players.map(p => p.position));
+        renderedSquares.forEach((mesh, index) => {
+            if (index < lowestPlayerPosition - 5) {
+                scene.remove(mesh);
+                renderedSquares.delete(index);
+            }
+        });
+
+        if (lowestPlayerPosition + 10 > lastGeneratedSquareIndex) {
+            generateBoardSegment(lastGeneratedSquareIndex + 1, 15);
+        }
+    }
+
+    function createPlayerTokens() {
+        playerTokens = [];
+        playerTokenObjects = [];
+        players.forEach((player, index) => {
+            const tokenDiv = document.createElement('div');
+            tokenDiv.className = 'player-token';
+            tokenDiv.textContent = player.symbol;
+            dom.gameScreen.appendChild(tokenDiv);
+            playerTokens.push(tokenDiv);
+
+            const tokenObject = new THREE.Object3D();
+            scene.add(tokenObject);
+            playerTokenObjects.push(tokenObject);
+        });
+    }
+
+    function updateTokensPosition() {
+        players.forEach((player, index) => {
+            const screenPosition = playerTokenObjects[index].position.clone();
+            screenPosition.project(camera);
+
+            const x = (screenPosition.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-screenPosition.y * 0.5 + 0.5) * window.innerHeight;
+            
+            playerTokens[index].style.left = `${x}px`;
+            playerTokens[index].style.top = `${y}px`;
+        });
+    }
+
+    function createParticleEffect(tokenObject) {
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 200;
+        const positions = new Float32Array(particlesCount * 3);
+        const velocities = new Float32Array(particlesCount * 3);
+        const colors = new Float32Array(particlesCount * 3);
+        const originalColors = new Float32Array(particlesCount * 3);
+
+        for (let i = 0; i < particlesCount; i++) {
+            const x = (Math.random() - 0.5) * 4;
+            const y = (Math.random() - 0.5) * 4;
+            const z = (Math.random() - 0.5) * 4;
+            positions.set([x, y, z], i * 3);
+            velocities.set([(Math.random() - 0.5) * 0.05, (Math.random()) * 0.05, (Math.random() - 0.5) * 0.05], i * 3);
+            colors.set([1, 1, 0.5], i * 3); 
+            originalColors.set([1, 1, 0.5], i * 3); 
+        }
+
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particlesGeometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
+        particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 0.2,
+            vertexColors: true,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+        });
+
+        const particles = new THREE.Points(particlesGeometry, particleMaterial);
+        tokenObject.add(particles);
+
+        function animateParticles() {
+            const positions = particles.geometry.attributes.position.array;
+            const velocities = particles.geometry.attributes.velocity.array;
+            const colors = particles.geometry.attributes.color.array;
+
+            for (let i = 0; i < particlesCount; i++) {
+                positions[i * 3 + 0] += velocities[i * 3 + 0];
+                positions[i * 3 + 1] += velocities[i * 3 + 1];
+                positions[i * 3 + 2] += velocities[i * 3 + 2];
+                
+                velocities[i * 3 + 1] -= 0.001;
+                
+                colors[i * 3] = originalColors[i * 3] * Math.max(0, 1 - (Math.abs(positions[i*3]) + Math.abs(positions[i*3+2])) / 20);
+                colors[i * 3 + 1] = originalColors[i * 3+1] * Math.max(0, 1 - (Math.abs(positions[i*3]) + Math.abs(positions[i*3+2])) / 20);
+                colors[i * 3 + 2] = originalColors[i * 3+2] * Math.max(0, 1 - (Math.abs(positions[i*3]) + Math.abs(positions[i*3+2])) / 20);
+            }
+            particles.geometry.attributes.position.needsUpdate = true;
+            particles.geometry.attributes.color.needsUpdate = true;
+            
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+        return particles;
+    }
+    
+    // ================================================================
+    // 4. LÓGICA DE AUDIO
+    // ================================================================
+    let audioEnabled = true;
+
+    function createAudio(path) {
+        const audio = new Audio(path);
+        audio.preload = 'auto';
+        return audio;
+    }
+
+    const sounds = {
+        diceRoll: createAudio('diceroll.mp3'),
+        move: createAudio('move.mp3'),
+        special: createAudio('special.mp3'),
+        win: createAudio('win.mp3'),
+    };
+
+    const specialSquareSounds = {
+        "5": createAudio('fireball.mp3'),
+        "15": createAudio('fireball.mp3'),
+        "25": createAudio('fireball.mp3'),
+        "35": createAudio('fireball.mp3'),
+        "45": createAudio('fireball.mp3'),
+        "55": createAudio('fireball.mp3'),
+        "63": createAudio('win.mp3'),
+    };
+
+    function playSound(sound) {
+        if (audioEnabled) {
+            sound.play().catch(e => console.error("Error al reproducir el sonido:", e));
+        }
+    }
+
+    dom.toggleAudioBtn.addEventListener('click', () => {
+        audioEnabled = !audioEnabled;
+        dom.volumeIcon.innerHTML = audioEnabled
+            ? '<path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728m-9.9-2.828a5 5 0 010-7.072M3 12a9 9 0 012.828-6.364l14.142 14.142A9 9 0 013 12z" />'
+            : '<path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728m-9.9-2.828a5 5 0 010-7.072M3 12a9 9 0 012.828-6.364l14.142 14.142A9 9 0 013 12zM5.105 5.105A1 1 0 016 6.059L18.895 18.895A1 1 0 0118 19.941L5.105 7.059a1 1 0 01-.895-1.944z" />';
+    });
+    
+    // Inicialización al cargar la página
+    updatePlayerInputs();
+</script>
+
+</body>
+</html>
