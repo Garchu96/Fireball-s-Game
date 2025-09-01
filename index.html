@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juego de la Fireball</title>
+    <link rel="icon" type="image/jpg" href="file.ico"/>
+    <title>Juego Fireball</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -154,7 +155,7 @@
 <body>
 
 <div id="setup-screen" class="p-8 max-w-lg mx-auto bg-gray-800 rounded-3xl shadow-xl space-y-6 absolute z-50">
-    <h1 class="text-4xl font-bold text-center text-teal-400">Juego de la Fireball</h1>
+    <h1 class="text-4xl font-bold text-center text-teal-400">Juego del Fireball</h1>
     <div class="space-y-4">
         <label for="player-count" class="block text-xl font-medium text-gray-300">Número de Jugadores:</label>
         <select id="player-count" class="block w-full rounded-lg bg-gray-700 text-white p-3 focus:outline-none focus:ring-2 focus:ring-teal-500">
@@ -164,6 +165,7 @@
         </select>
     </div>
     <div id="player-inputs" class="space-y-4"></div>
+    <h1 class="text-4xl font-bold text-center text-teal-400">By Garchu</h1>
     <button id="start-game-btn" class="w-full py-3 bg-teal-500 rounded-lg text-white font-bold text-xl hover:bg-teal-600 transition-colors shadow-lg">Comenzar</button>
 </div>
 
@@ -299,67 +301,67 @@
     const totalSquares = 63;
     
     const challenges = {
-        1: "¡Comienza la aventura! ¡Toma un sorbo de tu bebida!",
+        1: "¡Comienza la aventura! ¡Todos bebemos para celebrarlo!",
         2: "¡Duelo de miradas! El que parpadea primero, bebe.",
-        3: "Di tu color favorito. Si alguien tiene el mismo, bebe.",
-        4: "¡Reto! Haz un 'high five' a otro jugador. Si te lo devuelve, ambos beben.",
+        3: "rolea toda la ronda que eres un animal.",
+        4: "piedra, pepel o tijera quien pierda bebe",
         5: "¡Fireball! Avanzas 6 casillas extra.",
         6: "¡Reto! Hazle una pregunta a un jugador. Si no responde, bebe.",
         7: "¡Regla de la casa! Inventa una regla que dure una ronda.",
-        8: "¡Reto! Imita a tu animal favorito.",
+        8: "Tienes que hacer preguntas en tu ronda si alguien te responde bebe 1 trago si no, bebes tu 3.",
         9: "Si eres el jugador más joven, bebe.",
-        10: "¡Pierdes turno! Te quedas una ronda sin tirar los dados.",
+        10: "¡Pierdes turno! Te quedas una ronda sin tirar los dados y ya de paso te metes un chupito.",
         11: "¡Reto! Haz un chiste. Si nadie se ríe, bebe.",
         12: "¡Todos beben!",
-        13: "¡Reto! Cuenta una historia de terror de 3 palabras. La más votada hace beber al resto.",
-        14: "Si tienes un teléfono a la vista, bebe.",
+        13: "Cuenta dos mentiras y una verdad tienen que adivinar cual es verdad",
+        14: "Imita a un primo famoso en la familia (gestos, frases, manías).",
         15: "¡Fireball! Avanzas 6 casillas extra.",
-        16: "Si eres zurdo, bebe.",
+        16: "Si no te has duchado hoy, bebes.",
         17: "¡Reto! Haz 5 flexiones o bebe.",
         18: "¡Todos los jugadores con la inicial 'A' beben!",
-        19: "Si la última película que viste fue de comedia, bebe.",
+        19: "Ponte de pie y haz un speaching de algo que te ha pasado.",
         20: "¡Pierdes turno! Te quedas una ronda sin tirar los dados.",
-        21: "Si llevas reloj, bebe.",
-        22: "¡Reto! Di 'Supercalifragilisticoespialidoso' tres veces, si te equivocas, bebes.",
-        23: "El jugador a tu izquierda bebe.",
+        21: "Si tuvieras que darle un apodo nuevo a cada primo/a, ¿cuál sería?",
+        22: "Cuenta algo al grupo que nunca has dicho.",
+        23: "Haz una clase exprés de canto e inventa un himno familiar..",
         24: "Si eres el jugador más alto, bebe.",
         25: "¡Fireball! Avanzas 6 casillas extra.",
-        26: "Si no tienes redes sociales, bebe.",
-        27: "¡Reto! Lánzate al suelo, da una vuelta, levántate y bebe. Si te tambaleas, otro trago.",
+        26: "Si la familia fuera un circo, ¿qué papel tendría cada primo?.",
+        27: "Haz la pose del borracho,  Si te tambaleas, otro trago.",
         28: "Si naciste en un mes con 'r', bebes. ¡Y si no, te salvas!",
         29: "El jugador a tu derecha bebe.",
         30: "¡Pierdes turno! Te quedas una ronda sin tirar los dados.",
         31: "Todos los que tengan un número par en su posición de casilla beben.",
-        32: "Si no bebes alcohol, bebe agua.",
-        33: "Si eres el jugador más bajo, bebe.",
+        32: "Eres el rey mandas hacer lo que quieras en esta ronda",
+        33: "¿Qué historia familiar te sabes de memoria y nunca dejas de contar?",
         34: "El jugador que no se rió en tu último chiste, bebe.",
         35: "¡Fireball! Avanzas 6 casillas extra.",
-        36: "Si eres el jugador que tiene más llaves en el bolsillo, bebes.",
-        37: "Elige a un jugador para que beba.",
-        38: "¡Reto! Canta una canción de karaoke.",
-        39: "Si te has tropezado hoy, bebes.",
-        40: "Si tu cabello es rubio, bebe.",
+        36: "Eres el alma de la familia, cada vez que levantes el vaso te tienen que brindar, si no castigo/beber.",
+        37: "¿Cuál es el apodo más raro que te han puesto en la familia?",
+        38: "Si pudieras cambiar de vida con un primo por un día, ¿con quién sería y por qué?",
+        39: "¿Cuál fue tu travesura más épica de niño/a?",
+        40: "Inventad una historia absurda entre todos, cada uno añade una frase.",
         41: "Elige una regla para que todos la sigan durante la siguiente ronda.",
-        42: "¡Reto! Pídele un 'me gusta' a alguien en las redes sociales. Si no lo consigues en 5 segundos, bebes.",
+        42: "Eres un presentador de TV y debes narrar lo que está pasando en el juego.",
         43: "Si tu posición de casilla es un número primo, bebes.",
-        44: "El último en decir '¡Juego de la Fireball!' bebe.",
+        44: "El último en decir por la familia",
         45: "¡Fireball! Avanzas 6 casillas extra.",
-        46: "Si naciste en invierno, bebes.",
+        46: "Rolea como si fueras un presentador de concurso y un primo debe “ganar el premio”.",
         47: "Si te has perdido en una ciudad, bebes.",
-        48: "¡Reto! Elige a otro jugador para un 'piedra, papel o tijera'. El perdedor bebe.",
-        49: "Si no llevas pantalón vaquero, bebes.",
+        48: "Finge que te has perdido en medio de la selva y los primos tienen que rescatarte.",
+        49: "Haz como si fueras un político dando un discurso familiar y promete cosas absurdas.",
         50: "¡Pierdes turno! Te quedas una ronda sin tirar los dados.",
-        51: "Si llevas una camisa de color blanco, bebes.",
-        52: "Si eres el jugador con más tatuajes, bebes.",
+        51: "Si tuvieras que elegir un primo/a para ser tu compañero de fuga de la cárcel, ¿quién sería?",
+        52: "¿Quién de los primos sería el mejor detective… y quién sería el criminal?",
         53: "Elige a un jugador y hazle una pregunta. Si te contesta, bebe. Si no, tú bebes.",
-        54: "Si llevas gafas, bebes.",
+        54: "Haz de profesor de zumba y enseña un paso loco a todos.",
         55: "¡Fireball! Avanzas 6 casillas extra.",
-        56: "Si no sabes qué hora es, bebe.",
+        56: "Habla como si fueras un GPS humano y dirige a un primo alrededor de la mesa.",
         57: "¡Reto! Describe a tu mascota sin decir su nombre.",
-        58: "Si tu nombre tiene más de 5 letras, bebes.",
-        59: "Si eres el jugador más lento, bebes.",
+        58: "Representa cómo sería una reunión de primos dentro de 30 años.",
+        59: "¿Qué es lo más raro que te ha pasado en una reunión de primos?",
         60: "¡Pierdes turno! Te quedas una ronda sin tirar los dados.",
-        61: "El jugador con la bebida más colorida, bebe.",
+        61: "Haz de rapero improvisado y lánzale un verso a un primo/a.",
         62: "Si no tienes pareja, bebes.",
         63: "¡Has llegado a la meta! ¡Victoria! ¡Todos beben a tu salud!"
     };
@@ -792,10 +794,10 @@
     }
 
     const sounds = {
-        diceRoll: createAudio('diceroll.mp3'),
+        diceRoll: createAudio('dados.mp3'),
         move: createAudio('move.mp3'),
-        special: createAudio('special.mp3'),
-        win: createAudio('win.mp3'),
+        special: createAudio('los_libros.ogg'),
+        win: createAudio('champion.mp4'),
     };
 
     const specialSquareSounds = {
@@ -805,7 +807,7 @@
         "35": createAudio('fireball.mp3'),
         "45": createAudio('fireball.mp3'),
         "55": createAudio('fireball.mp3'),
-        "63": createAudio('win.mp3'),
+        "63": createAudio('fireball.mp3'),
     };
 
     function playSound(sound) {
@@ -827,3 +829,4 @@
 
 </body>
 </html>
+
